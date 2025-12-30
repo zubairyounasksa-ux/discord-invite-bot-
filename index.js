@@ -29,18 +29,23 @@ async function generateInvite() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        max_age: 86400,
-        max_uses: 1,
+        max_age: 86400,    // 24 hours
+        max_uses: 1,       // single-use
         temporary: false,
         unique: true
       })
     });
 
-    const data = await res.json();
-    console.log("Discord API response:", data);
+    console.log("HTTP status:", res.status);
+    const text = await res.text();
+    console.log("Response body:", text);
 
-    if (data.code) return `https://discord.gg/${data.code}`;
-    else return null;
+    if (res.ok) {
+      const data = JSON.parse(text);
+      if (data.code) return `https://discord.gg/${data.code}`;
+    }
+
+    return null;
   } catch (err) {
     console.error("Fetch error:", err);
     return null;
