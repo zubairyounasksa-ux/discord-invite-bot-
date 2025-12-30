@@ -1,5 +1,6 @@
-import fetch from "node-fetch";
 import express from "express";
+import { Client, GatewayIntentBits } from "discord.js";
+import "dotenv/config"; // loads BOT_TOKEN and CHANNEL_ID from environment variables
 
 const app = express();
 
@@ -7,7 +8,7 @@ const app = express();
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
-// Safety check: ensure environment variables exist
+// Safety check
 if (!BOT_TOKEN || !CHANNEL_ID) {
   console.error("❌ BOT_TOKEN or CHANNEL_ID is missing! Check your Render environment variables.");
   process.exit(1);
@@ -16,55 +17,49 @@ if (!BOT_TOKEN || !CHANNEL_ID) {
 console.log("BOT_TOKEN exists?", !!BOT_TOKEN);
 console.log("CHANNEL_ID exists?", !!CHANNEL_ID);
 
-// Root route
-app.get("/", (req, res) => {
-  res.send("Discord Invite Bot is running. Use /generate-invite to get a link.");
+// Create Discord client
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.once("ready", () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 // Function to generate a 1-use, 24-hour invite
 async function generateInvite() {
-  console.log("Attempting to generate invite...");
-  console.log("BOT_TOKEN length:", BOT_TOKEN?.length);
-  console.log("CHANNEL_ID:", CHANNEL_ID);
-
   try {
-    const res = await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/invites`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bot ${BOT_TOKEN}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        max_age: 86400,    // 24 hours
-        max_uses: 1,       // single-use
-        temporary: false,
-        unique: true
-      })
-    });
-
-    console.log("HTTP status:", res.status);
-    const text = await res.text();
-    console.log("Response body:", text);
-
-    if (res.ok) {
-      const data = JSON.parse(text);
-      if (data.code) return `https://discord.gg/${data.code}`;
+    const channel = await client.channels.fetch(CHANNEL_ID);
+    if (!channel) {
+      console.error("Channel not found");
+      return null;
     }
 
-    return null;
+    const invite = await channel.createInvite({
+      maxAge: 86400, // 24 hours
+      maxUses: 1,    // single-use
+      unique: true
+    });
+
+    return invite.url;
   } catch (err) {
-    console.error("Fetch error:", err);
+    console.error("Error generating invite:", err);
     return null;
   }
 }
 
-// Endpoint to get invite link
+// Express routes
+app.get("/", (req, res) => {
+  res.send("Discord Invite Bot is running. Use /generate-invite to get a link.");
+});
+
 app.get("/generate-invite", async (req, res) => {
   const link = await generateInvite();
   if (link) res.send({ invite: link });
   else res.status(500).send({ error: "Failed to generate invite" });
 });
 
-// Start server
+// Start Express server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Login Discord bot
+client.login(BOT_TOKEN);
