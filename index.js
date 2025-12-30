@@ -7,6 +7,12 @@ const app = express();
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
+// Safety check: ensure environment variables exist
+if (!BOT_TOKEN || !CHANNEL_ID) {
+  console.error("❌ BOT_TOKEN or CHANNEL_ID is missing! Check your Render environment variables.");
+  process.exit(1);
+}
+
 console.log("BOT_TOKEN exists?", !!BOT_TOKEN);
 console.log("CHANNEL_ID exists?", !!CHANNEL_ID);
 
